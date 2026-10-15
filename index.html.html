@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Flight Duty Roster</title>
+    
+    <!-- PWA Meta Tags & iOS Standalone Settings -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flight Roster">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Embedded Web App Manifest via Data URI -->
+    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Flight%20Duty%20Roster%22%2C%22short_name%22%3A%22Roster%22%2C%22description%22%3A%22Mobile%20Flight%20Duty%20Roster%20Manager%20%26%20Viewer%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20512%20512'%3E%3Crect%20width%3D'512'%20height%3D'512'%20rx%3D'128'%20fill%3D'%23059669'%2F%3E%3Cpath%20d%3D'M256%2096l32%20128%20128%2032-128%2032-32%20128-32-128-128-32%20128-32z'%20fill%3D'%23ffffff'%2F%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2canvas for Exporting PNG Images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Duty Status Styles matching Airport Operational Color Palette */
+        .bg-checking { background-color: #00b0f0 !important; color: #ffffff !important; }
+        .bg-arrival { background-color: #22c55e !important; color: #ffffff !important; }
+        .bg-hold { background-color: #ed7d31 !important; color: #ffffff !important; }
+        .bg-clean { background-color: #f8cbad !important; color: #7c2d12 !important; }
+        .bg-off { background-color: #ef4444 !important; color: #ffffff !important; font-weight: bold; }
+        .bg-bt2 { background-color: #5b9bd5 !important; color: #ffffff !important; }
+        .bg-bt3 { background-color: #7030a0 !important; color: #ffffff !important; }
+        .bg-gpu { background-color: #548235 !important; color: #ffffff !important; }
+        .bg-otherv { background-color: #64748b !important; color: #ffffff !important; }
+        .bg-sl { background-color: #eab308 !important; color: #000000 !important; }
+        .bg-al { background-color: #a855f7 !important; color: #ffffff !important; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="pb-28 text-slate-900">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 bg-slate-900 text-white px-4 py-3 shadow-md flex justify-between items-center border-b border-slate-800">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center font-black text-sm text-white shadow-inner">
+                <i class="fa-solid fa-plane-arrival"></i>
+            </div>
+            <div>
+                <h1 class="text-xs font-black tracking-wide leading-none">Flight Duty Roster</h1>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <span id="modeBadge" class="text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider bg-blue-600 text-white">Admin</span>
+                    <span id="offlineBadge" class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Offline Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+            <button id="pwaInstallBtn" onclick="showInstallModal()" class="px-2.5 py-1.5 bg-emerald-600 active:bg-emerald-700 text-white text-xs font-extrabold rounded-lg shadow flex items-center gap-1 animate-pulse">
+                <i class="fa-solid fa-mobile-screen-button"></i> Install App
+            </button>
+            <button id="toggleAdminBtn" onclick="toggleMode()" class="px-2.5 py-1.5 bg-slate-800 active:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1">
+                <i class="fa-solid fa-lock text-amber-400"></i> <span id="toggleAdminText">Staff View</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Home Screen PWA Install Prompt Banner -->
+    <div id="installBanner" class="hidden bg-emerald-900 text-white px-4 py-2.5 shadow-md flex items-center justify-between border-b border-emerald-700">
+        <div class="flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-arrow-down text-emerald-300 text-lg"></i>
+            <div>
+                <p class="text-xs font-bold leading-tight">Add to Home Screen</p>
+                <p class="text-[10px] text-emerald-200">Use as a full offline phone application</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="showInstallModal()" class="bg-white text-emerald-900 text-xs font-black px-2.5 py-1 rounded-md shadow">How</button>
+            <button onclick="closeInstallBanner()" class="text-emerald-300 px-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- Read-Only Staff Banner -->
+    <div id="readOnlyBanner" class="hidden max-w-md mx-auto mt-2 px-3">
+        <div class="bg-blue-900/90 text-blue-100 text-xs px-3.5 py-2 rounded-xl flex items-center justify-between border border-blue-700/60 shadow-sm">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-blue-300 text-sm"></i>
+                <span class="font-medium"><strong>Read-Only View:</strong> Editing is locked by Ramp Management.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Mobile Content Card Container -->
+    <main class="max-w-md mx-auto px-3 mt-3 space-y-3.5">
+
+        <!-- Exportable Document Wrapper -->
+        <div id="rosterExportCard" class="bg-white rounded-2xl shadow-md border border-slate-300 overflow-hidden p-3.5 space-y-3.5">
+
+            <!-- Top Flight Header Box -->
+            <div class="bg-slate-900 text-white rounded-xl p-3 shadow-sm border border-slate-800 space-y-2.5">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-700/80">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Flight Code</span>
+                        <input type="text" id="flightCode" value="Q2106/7 ATR" class="admin-input bg-slate-800 text-yellow-300 font-black text-base w-full rounded px-2 py-0.5 outline-none border border-slate-700">
+                        <div class="staff-text hidden text-yellow-300 font-black text-base">Q2106/7 ATR</div>
+                    </div>
+                    <div class="w-20 text-right">
+                        <span class="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Flight No.</span>
+                        <input type="text" id="flightNoMain" value="02" class="admin-input bg-slate-800 text-white font-black text-base text-right w-full rounded px-2 py-0.5 outline-none border border-slate-700">
+                        <div class="staff-text hidden text-white font-black text-base text-right">02</div>
+                    </div>
+                </div>
+
+                <!-- Yellow Officer Box -->
+                <div class="bg-[#fff2cc] text-slate-900 rounded-lg p-2.5 space-y-2 border border-amber-300">
+                    <div>
+                        <span class="text-[9px] uppercase tracking-wider text-amber-800/80 font-black block">Date & Day</span>
+                        <input type="text" id="flightDate" value="15 OCTOBER 2026 ( THURSDAY )" class="admin-input bg-white/80 text-black font-extrabold text-xs w-full rounded px-2 py-0.5 outline-none border border-amber-300">
+                        <div class="staff-text hidden text-black font-extrabold text-xs">15 OCTOBER 2026 ( THURSDAY )</div>
+                    </div>
+
+                    <div class="space-y-1 pt-1 border-t border-amber-300/80 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] text-amber-900 font-bold">Ramp Officer:</span>
+                            <input type="text" id="officer1" value="Ahmed Ashfaq" class="admin-input bg-white/80 text-black font-bold text-right px-1.5 py-0.5 rounded outline-none border border-amber-300 w-3/5 text-xs">
+                            <div class="staff-text hidden text-black font-bold text-right text-xs">Ahmed Ashfaq</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] text-amber-900 font-bold">Asst Ramp Officer:</span>
+                            <input type="text" id="officer2" value="Ibrahim Shaah" class="admin-input bg-white/80 text-black font-bold text-right px-1.5 py-0.5 rounded outline-none border border-amber-300 w-3/5 text-xs">
+                            <div class="staff-text hidden text-black font-bold text-right text-xs">Ibrahim Shaah</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] text-amber-900 font-bold">Asst Ramp Officer:</span>
+                            <input type="text" id="officer3" value="Amsad Najmy" class="admin-input bg-white/80 text-black font-bold text-right px-1.5 py-0.5 rounded outline-none border border-amber-300 w-3/5 text-xs">
+                            <div class="staff-text hidden text-black font-bold text-right text-xs">Amsad Najmy</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Duty & Checking Times -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-yellow-400 text-black font-black rounded-lg p-1.5 text-center border border-yellow-500">
+                        <span class="text-[9px] uppercase tracking-wider block text-black/70">Duty Time</span>
+                        <input type="text" id="dutyTime" value="16:00" class="admin-input bg-yellow-300 text-red-600 font-black text-sm text-center w-full rounded outline-none border border-yellow-500">
+                        <div class="staff-text hidden text-red-600 font-black text-sm">16:00</div>
+                    </div>
+                    <div class="bg-sky-500 text-white font-black rounded-lg p-1.5 text-center border border-sky-600">
+                        <span class="text-[9px] uppercase tracking-wider block text-sky-100">Checking Time</span>
+                        <input type="text" id="checkingTime" value="18:10" class="admin-input bg-sky-600 text-white font-black text-sm text-center w-full rounded outline-none border border-sky-400">
+                        <div class="staff-text hidden text-white font-black text-sm">18:10</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Note Banner -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-amber-900 text-xs font-semibold flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-amber-600 text-sm shrink-0"></i>
+                <input type="text" id="noteText" value="Note: All handlers have to involve flight Checking time" class="admin-input bg-transparent text-xs font-extrabold text-red-600 w-full outline-none">
+                <div class="staff-text hidden text-xs font-extrabold text-red-600">Note: All handlers have to involve flight Checking time</div>
+            </div>
+
+            <!-- Handlers Section -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-black"></span>
+                        <h2 class="font-black text-xs text-slate-900 uppercase tracking-wide">Handlers</h2>
+                        <span id="handlersCount" class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    <button onclick="addStaff('handlers')" class="admin-btn bg-black active:bg-slate-800 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                        <i class="fa-solid fa-plus text-[9px]"></i> Add Handler
+                    </button>
+                </div>
+                <div id="handlersList" class="space-y-2"></div>
+            </div>
+
+            <!-- Operators Section -->
+            <div class="pt-1">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-black"></span>
+                        <h2 class="font-black text-xs text-slate-900 uppercase tracking-wide">Operators</h2>
+                        <span id="operatorsCount" class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    <button onclick="addStaff('operators')" class="admin-btn bg-black active:bg-slate-800 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                        <i class="fa-solid fa-plus text-[9px]"></i> Add Operator
+                    </button>
+                </div>
+                <div id="operatorsList" class="space-y-2"></div>
+            </div>
+
+        </div>
+
+        <!-- Share & Action Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3.5 space-y-2.5">
+            <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-share-nodes text-emerald-600"></i> Share & Export Options
+            </h3>
+            <div class="grid grid-cols-1 gap-2">
+                <button onclick="copyReadOnlyLink()" class="w-full bg-emerald-600 active:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-xl shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-link"></i> Copy Read-Only Link (Locked for Staff)
+                </button>
+                <button onclick="shareWhatsApp()" class="w-full bg-green-500 active:bg-green-600 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp"></i> Send WhatsApp Read-Only Summary
+                </button>
+                <button onclick="exportImage()" class="w-full bg-blue-600 active:bg-blue-700 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> Save as Image Card (PNG)
+                </button>
+            </div>
+
+            <!-- Admin Controls -->
+            <div class="admin-btn border-t border-slate-100 pt-2.5 grid grid-cols-2 gap-2">
+                <button onclick="saveRoster()" class="bg-slate-800 active:bg-slate-900 text-white font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Local Draft
+                </button>
+                <button onclick="resetRoster()" class="bg-rose-50 border border-rose-200 text-rose-600 active:bg-rose-100 font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> Reset Roster
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Installation Modal Instructions -->
+    <div id="installModal" class="fixed inset-0 bg-slate-900/80 z-50 hidden backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl animate-in fade-in slide-in-from-bottom duration-200">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-slate-900 text-sm">Save to Home Screen</h3>
+                        <p class="text-xs text-slate-500">Use as a regular App on your phone</p>
+                    </div>
+                </div>
+                <button onclick="hideInstallModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 pt-1 text-xs">
+                <!-- iOS Instructions -->
+                <div id="iosInstructions" class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+                    <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-brands fa-apple text-sm text-slate-900"></i> iPhone / iPad (Safari):
+                    </p>
+                    <ol class="list-decimal list-inside text-slate-600 space-y-1 pl-1">
+                        <li>Tap the <strong>Share</strong> button at bottom browser bar (<i class="fa-solid fa-arrow-up-from-bracket text-blue-500"></i>).</li>
+                        <li>Scroll down and tap <strong>"Add to Home Screen"</strong> (<i class="fa-regular fa-square-plus text-slate-700"></i>).</li>
+                        <li>Tap <strong>Add</strong> in the top right corner.</li>
+                    </ol>
+                </div>
+
+                <!-- Android Instructions -->
+                <div id="androidInstructions" class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+                    <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-brands fa-android text-sm text-emerald-600"></i> Android (Chrome):
+                    </p>
+                    <ol class="list-decimal list-inside text-slate-600 space-y-1 pl-1">
+                        <li>Tap the <strong>Menu</strong> button (3 dots <i class="fa-solid fa-ellipsis-vertical"></i>) top right.</li>
+                        <li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
+                        <li>Confirm by tapping <strong>Add</strong>.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <button onclick="hideInstallModal()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-2xl text-xs">
+                Got it, Thanks!
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-xs border border-slate-700 w-11/12 max-w-xs justify-center">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toastMsg" class="font-bold">Action completed!</span>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // Preset Duty Status Definitions
+        const handlerRoles = [
+            { id: 'OFF', label: 'OFF', class: 'bg-off' },
+            { id: 'Checking', label: 'Checking', class: 'bg-checking' },
+            { id: 'Arrivals', label: "Arrival's", class: 'bg-arrival' },
+            { id: 'Hold', label: 'Hold', class: 'bg-hold' },
+            { id: 'Clean', label: 'Clean', class: 'bg-clean' },
+            { id: 'SL', label: 'SL', class: 'bg-sl' },
+            { id: 'AL', label: 'AL', class: 'bg-al' }
+        ];
+
+        const operatorRoles = [
+            { id: 'OFF', label: 'OFF', class: 'bg-off' },
+            { id: 'BT2', label: 'BT2', class: 'bg-bt2' },
+            { id: 'BT3', label: 'BT3', class: 'bg-bt3' },
+            { id: 'GPU', label: 'GPU', class: 'bg-gpu' },
+            { id: 'OtherV', label: 'Other v', class: 'bg-otherv' },
+            { id: 'SL', label: 'SL', class: 'bg-sl' },
+            { id: 'AL', label: 'AL', class: 'bg-al' }
+        ];
+
+        // Default initial data
+        const defaultData = {
+            flightCode: "Q2106/7 ATR",
+            flightNoMain: "02",
+            flightDate: "15 OCTOBER 2026 ( THURSDAY )",
+            dutyTime: "16:00",
+            checkingTime: "18:10",
+            officer1: "Ahmed Ashfaq",
+            officer2: "Ibrahim Shaah",
+            officer3: "Amsad Najmy",
+            noteText: "Note: All handlers have to involve flight Checking time",
+            handlers: [
+                { id: 101, name: "Ahmed Saeed", activeRoles: ["Checking"], customNote: "18:10" },
+                { id: 102, name: "Mohamed Ihsaan", activeRoles: ["Checking"], customNote: "" },
+                { id: 103, name: "Mohamed Siman", activeRoles: ["OFF"], customNote: "" },
+                { id: 104, name: "Ismail Riyaas", activeRoles: ["Hold"], customNote: "" },
+                { id: 105, name: "Hussain Rasheed", activeRoles: ["Arrivals"], customNote: "" },
+                { id: 106, name: "Ali Nizar", activeRoles: ["Arrivals"], customNote: "" }
+            ],
+            operators: [
+                { id: 201, name: "Abdulla Saeed", activeRoles: ["BT2"], customNote: "" },
+                { id: 202, name: "Hussain Didi", activeRoles: [], customNote: "" },
+                { id: 203, name: "Hassan Mamdhooh", activeRoles: [], customNote: "" },
+                { id: 204, name: "Faheem Fathuhee", activeRoles: ["GPU"], customNote: "" }
+            ]
+        };
+
+        let rosterState = JSON.parse(JSON.stringify(defaultData));
+        let isAdminMode = true;
+        let deferredPrompt = null;
+
+        function showToast(msg, isSuccess = true) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            document.getElementById('toastIcon').className = isSuccess ? "fa-solid fa-circle-check text-emerald-400 text-sm" : "fa-solid fa-triangle-exclamation text-amber-400 text-sm";
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function syncHeaderInputs() {
+            if (!isAdminMode) return;
+            rosterState.flightCode = document.getElementById('flightCode').value;
+            rosterState.flightNoMain = document.getElementById('flightNoMain').value;
+            rosterState.flightDate = document.getElementById('flightDate').value;
+            rosterState.dutyTime = document.getElementById('dutyTime').value;
+            rosterState.checkingTime = document.getElementById('checkingTime').value;
+            rosterState.officer1 = document.getElementById('officer1').value;
+            rosterState.officer2 = document.getElementById('officer2').value;
+            rosterState.officer3 = document.getElementById('officer3').value;
+            rosterState.noteText = document.getElementById('noteText').value;
+        }
+
+        function applyModeUI() {
+            const badge = document.getElementById('modeBadge');
+            const toggleText = document.getElementById('toggleAdminText');
+            const banner = document.getElementById('readOnlyBanner');
+            
+            const adminInputs = document.querySelectorAll('.admin-input');
+            const staffTexts = document.querySelectorAll('.staff-text');
+            const adminBtns = document.querySelectorAll('.admin-btn');
+
+            if (isAdminMode) {
+                badge.textContent = "Admin";
+                badge.className = "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider bg-blue-600 text-white";
+                toggleText.textContent = "Staff View";
+                banner.classList.add('hidden');
+
+                adminInputs.forEach(el => el.classList.remove('hidden'));
+                staffTexts.forEach(el => el.classList.add('hidden'));
+                adminBtns.forEach(el => el.classList.remove('hidden'));
+            } else {
+                badge.textContent = "Read-Only";
+                badge.className = "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider bg-emerald-600 text-white";
+                toggleText.textContent = "Edit Mode";
+                banner.classList.remove('hidden');
+
+                adminInputs.forEach(el => el.classList.add('hidden'));
+                staffTexts.forEach(el => el.classList.remove('hidden'));
+                adminBtns.forEach(el => el.classList.add('hidden'));
+            }
+        }
+
+        function renderRoster() {
+            document.getElementById('flightCode').value = rosterState.flightCode;
+            document.getElementById('flightNoMain').value = rosterState.flightNoMain;
+            document.getElementById('flightDate').value = rosterState.flightDate;
+            document.getElementById('dutyTime').value = rosterState.dutyTime;
+            document.getElementById('checkingTime').value = rosterState.checkingTime;
+            document.getElementById('officer1').value = rosterState.officer1;
+            document.getElementById('officer2').value = rosterState.officer2;
+            document.getElementById('officer3').value = rosterState.officer3;
+            document.getElementById('noteText').value = rosterState.noteText;
+
+            const staffEls = document.querySelectorAll('.staff-text');
+            if (staffEls.length >= 8) {
+                staffEls[0].textContent = rosterState.flightCode;
+                staffEls[1].textContent = rosterState.flightNoMain;
+                staffEls[2].textContent = rosterState.flightDate;
+                staffEls[3].textContent = rosterState.officer1;
+                staffEls[4].textContent = rosterState.officer2;
+                staffEls[5].textContent = rosterState.officer3;
+                staffEls[6].textContent = rosterState.dutyTime;
+                staffEls[7].textContent = rosterState.checkingTime;
+                if (staffEls[8]) staffEls[8].textContent = rosterState.noteText;
+            }
+
+            document.getElementById('handlersCount').textContent = rosterState.handlers.length;
+            const hList = document.getElementById('handlersList');
+            hList.innerHTML = '';
+            rosterState.handlers.forEach((h, index) => {
+                hList.appendChild(createStaffCard('handlers', h, index, handlerRoles));
+            });
+
+            document.getElementById('operatorsCount').textContent = rosterState.operators.length;
+            const opList = document.getElementById('operatorsList');
+            opList.innerHTML = '';
+            rosterState.operators.forEach((op, index) => {
+                opList.appendChild(createStaffCard('operators', op, index, operatorRoles));
+            });
+
+            applyModeUI();
+        }
+
+        function createStaffCard(type, person, index, roleList) {
+            const card = document.createElement('div');
+            card.className = "bg-slate-50 border border-slate-200 rounded-xl p-2.5 space-y-1.5 shadow-2xs";
+
+            const topRow = document.createElement('div');
+            topRow.className = "flex items-center justify-between gap-2";
+
+            if (isAdminMode) {
+                const nameInput = document.createElement('input');
+                nameInput.type = "text";
+                nameInput.value = person.name;
+                nameInput.className = "font-bold text-slate-800 text-xs bg-transparent border-b border-transparent focus:border-slate-400 outline-none w-full py-0.5";
+                nameInput.onchange = (e) => {
+                    rosterState[type][index].name = e.target.value.trim();
+                };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = "admin-btn text-slate-400 hover:text-red-500 p-1 text-xs transition shrink-0";
+                deleteBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i>`;
+                deleteBtn.onclick = () => removeStaff(type, index);
+
+                topRow.appendChild(nameInput);
+                topRow.appendChild(deleteBtn);
+            } else {
+                const nameSpan = document.createElement('span');
+                nameSpan.className = "font-extrabold text-slate-900 text-xs py-0.5";
+                nameSpan.textContent = person.name;
+                topRow.appendChild(nameSpan);
+            }
+
+            const tagsRow = document.createElement('div');
+            tagsRow.className = "flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5";
+
+            if (isAdminMode) {
+                roleList.forEach(role => {
+                    const isSelected = person.activeRoles.includes(role.id);
+                    const tag = document.createElement('button');
+                    tag.type = "button";
+                    tag.className = `text-[10px] font-extrabold px-2.5 py-1 rounded-lg border transition shadow-2xs shrink-0 ${
+                        isSelected 
+                            ? `${role.class} border-transparent scale-105` 
+                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                    }`;
+                    tag.textContent = role.label;
+                    tag.onclick = () => toggleRole(type, index, role.id);
+                    tagsRow.appendChild(tag);
+                });
+            } else {
+                if (person.activeRoles.length === 0) {
+                    const tag = document.createElement('span');
+                    tag.className = "text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-slate-200 text-slate-600";
+                    tag.textContent = "Duty";
+                    tagsRow.appendChild(tag);
+                } else {
+                    person.activeRoles.forEach(rId => {
+                        const roleObj = roleList.find(r => r.id === rId);
+                        if (roleObj) {
+                            const tag = document.createElement('span');
+                            tag.className = `text-[10px] font-extrabold px-2.5 py-0.5 rounded-md ${roleObj.class}`;
+                            tag.textContent = roleObj.label;
+                            tagsRow.appendChild(tag);
+                        }
+                    });
+                }
+            }
+
+            card.appendChild(topRow);
+            card.appendChild(tagsRow);
+
+            if (isAdminMode) {
+                if (person.activeRoles.includes('Checking') || person.customNote) {
+                    const customNoteDiv = document.createElement('div');
+                    customNoteDiv.className = "pt-1 flex items-center gap-1.5";
+                    customNoteDiv.innerHTML = `
+                        <span class="text-[9px] text-slate-400 font-bold uppercase">Time/Note:</span>
+                        <input type="text" value="${person.customNote || ''}" placeholder="e.g. 18:10" 
+                               class="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded px-2 py-0.5 w-24 outline-none focus:border-blue-500"
+                               onchange="updateStaffNote('${type}', ${index}, this.value)">
+                    `;
+                    card.appendChild(customNoteDiv);
+                }
+            } else if (person.customNote) {
+                const noteSpan = document.createElement('div');
+                noteSpan.className = "text-[11px] font-bold text-blue-700 pt-0.5 flex items-center gap-1";
+                noteSpan.innerHTML = `<i class="fa-solid fa-clock text-[9px]"></i> <span>${person.customNote}</span>`;
+                card.appendChild(noteSpan);
+            }
+
+            return card;
+        }
+
+        function toggleRole(type, staffIndex, roleId) {
+            syncHeaderInputs();
+            const person = rosterState[type][staffIndex];
+            if (roleId === 'OFF') {
+                person.activeRoles = person.activeRoles.includes('OFF') ? [] : ['OFF'];
+            } else {
+                person.activeRoles = person.activeRoles.filter(r => r !== 'OFF');
+                const idx = person.activeRoles.indexOf(roleId);
+                if (idx > -1) {
+                    person.activeRoles.splice(idx, 1);
+                } else {
+                    person.activeRoles.push(roleId);
+                }
+            }
+            renderRoster();
+        }
+
+        function updateStaffNote(type, staffIndex, value) {
+            rosterState[type][staffIndex].customNote = value.trim();
+        }
+
+        function addStaff(type) {
+            syncHeaderInputs();
+            const name = prompt(`Enter ${type === 'handlers' ? 'Handler' : 'Operator'} name:`);
+            if (name && name.trim()) {
+                rosterState[type].push({
+                    id: Date.now(),
+                    name: name.trim(),
+                    activeRoles: [],
+                    customNote: ""
+                });
+                renderRoster();
+                showToast("Added new staff member");
+            }
+        }
+
+        function removeStaff(type, index) {
+            syncHeaderInputs();
+            if (confirm("Remove this person from roster?")) {
+                rosterState[type].splice(index, 1);
+                renderRoster();
+                showToast("Staff member removed");
+            }
+        }
+
+        function toggleMode() {
+            isAdminMode = !isAdminMode;
+            renderRoster();
+            showToast(isAdminMode ? "Switched to Admin Mode" : "Switched to Read-Only Staff View");
+        }
+
+        function saveRoster() {
+            syncHeaderInputs();
+            localStorage.setItem('mobile_flight_roster_pwa_v1', JSON.stringify(rosterState));
+            showToast("Draft saved locally!");
+        }
+
+        function resetRoster() {
+            if (confirm("Reset roster to default format?")) {
+                rosterState = JSON.parse(JSON.stringify(defaultData));
+                localStorage.removeItem('mobile_flight_roster_pwa_v1');
+                window.location.hash = '';
+                renderRoster();
+                showToast("Form reset to default");
+            }
+        }
+
+        function generateShareUrl() {
+            syncHeaderInputs();
+            const jsonStr = JSON.stringify(rosterState);
+            const encoded = btoa(encodeURIComponent(jsonStr));
+            return `${window.location.origin}${window.location.pathname}?mode=view#roster=${encoded}`;
+        }
+
+        function copyReadOnlyLink() {
+            const shareUrl = generateShareUrl();
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast("Read-Only Link copied to clipboard!");
+                }).catch(() => fallbackCopy(shareUrl));
+            } else {
+                fallbackCopy(shareUrl);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const input = document.createElement('textarea');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            showToast("Read-Only Link copied!");
+        }
+
+        function exportImage() {
+            syncHeaderInputs();
+            showToast("Generating image download...");
+            
+            const previousMode = isAdminMode;
+            isAdminMode = false;
+            renderRoster();
+
+            setTimeout(() => {
+                const cardEl = document.getElementById('rosterExportCard');
+                html2canvas(cardEl, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    useCORS: true
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Flight_Roster_${rosterState.flightNoMain}_${Date.now()}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+
+                    isAdminMode = previousMode;
+                    renderRoster();
+                    showToast("PNG image saved!");
+                }).catch(() => {
+                    isAdminMode = previousMode;
+                    renderRoster();
+                    showToast("Failed to render image", false);
+                });
+            }, 200);
+        }
+
+        function shareWhatsApp() {
+            let text = `✈️ *FLIGHT DUTY ROSTER* ✈️\n`;
+            text += `*Flight:* ${rosterState.flightCode} (No: ${rosterState.flightNoMain})\n`;
+            text += `*Date:* ${rosterState.flightDate}\n`;
+            text += `*Duty Time:* ${rosterState.dutyTime} | *Checking:* ${rosterState.checkingTime}\n\n`;
+            text += `*Ramp Officers:*\n`;
+            text += `• ${rosterState.officer1}\n• ${rosterState.officer2}\n• ${rosterState.officer3}\n\n`;
+            
+            text += `*HANDLERS:* (${rosterState.handlers.length})\n`;
+            rosterState.handlers.forEach(h => {
+                let roles = h.activeRoles.length ? h.activeRoles.join(", ") : "Duty";
+                if (h.customNote) roles += ` (${h.customNote})`;
+                text += `• ${h.name} - [${roles}]\n`;
+            });
+
+            text += `\n*OPERATORS:* (${rosterState.operators.length})\n`;
+            rosterState.operators.forEach(op => {
+                let roles = op.activeRoles.length ? op.activeRoles.join(", ") : "Duty";
+                text += `• ${op.name} - [${roles}]\n`;
+            });
+
+            const shareUrl = generateShareUrl();
+            text += `\n📲 *View Read-Only Online:* ${shareUrl}`;
+
+            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        // PWA Install Prompt Handling
+        function showInstallModal() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast('Installing Flight Roster App...');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                document.getElementById('installModal').classList.remove('hidden');
+            }
+        }
+
+        function hideInstallModal() {
+            document.getElementById('installModal').classList.add('hidden');
+        }
+
+        function closeInstallBanner() {
+            document.getElementById('installBanner').classList.add('hidden');
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBanner').classList.remove('hidden');
+        });
+
+        // Inline Service Worker Registration via Blob URL
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'roster-pwa-v1';
+                self.addEventListener('install', (e) => {
+                    self.skipWaiting();
+                });
+                self.addEventListener('activate', (e) => {
+                    e.waitUntil(clients.claim());
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(
+                        fetch(e.request).catch(() => caches.match(e.request))
+                    );
+                });
+            `;
+            const blob = new Blob([swCode], { type: 'text/javascript' });
+            const blobUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(blobUrl).then(() => {
+                console.log('Roster PWA Service Worker Registered');
+            }).catch(err => console.log('SW registration error', err));
+        }
+
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hash = window.location.hash;
+
+            if (urlParams.get('mode') === 'view' || hash.includes('roster=')) {
+                isAdminMode = false;
+                const match = hash.match(/roster=([^&]+)/);
+                if (match && match[1]) {
+                    try {
+                        const decoded = decodeURIComponent(atob(match[1]));
+                        rosterState = JSON.parse(decoded);
+                    } catch(e) {
+                        console.error("Could not parse hash data", e);
+                    }
+                }
+            } else {
+                const saved = localStorage.getItem('mobile_flight_roster_pwa_v1');
+                if (saved) {
+                    try { rosterState = JSON.parse(saved); } catch(e) {}
+                }
+            }
+
+            // Detect standalone PWA mode
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            if (isStandalone) {
+                document.getElementById('pwaInstallBtn').classList.add('hidden');
+            }
+
+            renderRoster();
+        };
+    </script>
+</body>
+</html>
+```
+
+### How to Save & Use on Your Phone
+
+1. **Open in Browser:** Copy or upload this `flight_roster_pwa.html` file to your server/hosting or open it directly in Safari (iPhone) or Chrome (Android).
+2. **Add to Home Screen (PWA):**
+   - **iPhone (Safari):** Tap the **Share icon** (<i class="fa-solid fa-arrow-up-from-bracket"></i>) at the bottom, scroll down, and tap **"Add to Home Screen"**.
+   - **Android (Chrome):** Tap the **Menu button** (3 dots <i class="fa-solid fa-ellipsis-vertical"></i>) at top-right, and select **"Add to Home screen"** or **"Install app"**.
+3. **Sharing with Staff:** Tap **"Copy Read-Only Link"** or **"Send WhatsApp Read-Only Summary"**. Staff opening this link will see the roster in **Read-Only Mode** with edit controls hidden.
